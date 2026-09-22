@@ -1,0 +1,16 @@
+{
+  "name": "localstripe-example-webhook-receiver",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Minimal node:http webhook receiver that verifies LocalStripe signatures.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@localstripe/sdk": "file:../../packages/sdk"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}

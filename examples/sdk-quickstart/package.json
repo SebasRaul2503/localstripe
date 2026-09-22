@@ -1,0 +1,16 @@
+{
+  "name": "localstripe-example-sdk-quickstart",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Quickstart for @localstripe/sdk (a local payment mock; no real payments).",
+  "type": "module",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@localstripe/sdk": "file:../../packages/sdk"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}
