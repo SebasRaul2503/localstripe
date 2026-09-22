@@ -20,8 +20,11 @@
     "test:e2e": "pnpm --filter @localstripe/e2e test",
     "db:test:up": "docker run -d --rm --name localstripe-test-db -e POSTGRES_USER=localstripe -e POSTGRES_PASSWORD=localstripe -e POSTGRES_DB=localstripe_test -p 55432:5432 postgres:16-alpine",
     "db:test:down": "docker stop localstripe-test-db",
-    "e2e:up": "docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait",
-    "e2e:down": "docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v"
+    "e2e:up": "docker compose --env-file tests/e2e/e2e.env -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait",
+    "e2e:down": "docker compose --env-file tests/e2e/e2e.env -f docker-compose.yml -f docker-compose.e2e.yml down -v",
+    "e2e:logs": "docker compose --env-file tests/e2e/e2e.env -f docker-compose.yml -f docker-compose.e2e.yml logs",
+    "build:packages": "pnpm --filter \"./packages/**\" build",
+    "test:e2e:persistence": "node tests/e2e/persistence.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",

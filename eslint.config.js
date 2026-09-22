@@ -36,7 +36,7 @@ export default tseslint.config(
       'apps/cli/src/**/*.ts',
       'examples/**/*.{js,mjs,ts}',
       'scripts/**/*.{js,mjs}',
-      'tests/e2e/webhook-sink/**/*.{js,mjs}',
+      'tests/e2e/**/*.mjs',
     ],
     rules: { 'no-console': 'off' },
   },
