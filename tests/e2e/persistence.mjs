@@ -45,7 +45,8 @@ const payment = await request('POST', '/v1/payment_intents', {
   payment_method: 'pm_card_visa',
   confirm: true,
 });
-if (payment.body.status !== 'succeeded') throw new Error(`unexpected status ${payment.body.status}`);
+if (payment.body.status !== 'succeeded')
+  throw new Error(`unexpected status ${payment.body.status}`);
 
 console.log('Restarting postgres and api containers...');
 execFileSync('docker', [...compose, 'restart', 'postgres', 'api'], { stdio: 'inherit' });

@@ -44,7 +44,7 @@ CI runs all of them on every pull request.
   (`feat(api): ...`).
 - **Architecture**: business rules go in services and pure domain files, never in routes or React
   components. See [docs/architecture.md](docs/architecture.md), including "Adding a resource".
-- **Comments** explain *why*, not *what*: non-obvious decisions, external constraints, and
+- **Comments** explain _why_, not _what_: non-obvious decisions, external constraints, and
   deliberate differences from Stripe.
 - **Tests**: pure rules get unit tests; anything touching the database gets integration tests;
   user-visible flows get an E2E test when practical.

@@ -44,9 +44,20 @@ describe('idempotency', () => {
 
   it('replays declines too, without charging twice', async () => {
     const key = randomUUID();
-    const body = { amount: 1200, currency: 'usd', payment_method: 'pm_card_chargeDeclined', confirm: true };
-    const first = await http('POST', '/v1/payment_intents', { body, headers: { 'idempotency-key': key } });
-    const second = await http('POST', '/v1/payment_intents', { body, headers: { 'idempotency-key': key } });
+    const body = {
+      amount: 1200,
+      currency: 'usd',
+      payment_method: 'pm_card_chargeDeclined',
+      confirm: true,
+    };
+    const first = await http('POST', '/v1/payment_intents', {
+      body,
+      headers: { 'idempotency-key': key },
+    });
+    const second = await http('POST', '/v1/payment_intents', {
+      body,
+      headers: { 'idempotency-key': key },
+    });
     expect(first.status).toBe(402);
     expect(second.status).toBe(402);
     expect(second.headers.get('idempotent-replayed')).toBe('true');
@@ -82,7 +93,9 @@ describe('webhook retries', () => {
       { message: 'automatic retry to succeed' },
     );
     expect(delivery.attempts).toBe(2);
-    const received = (await sink.received(event.id)).filter((entry) => entry.path === '/webhooks/retries');
+    const received = (await sink.received(event.id)).filter(
+      (entry) => entry.path === '/webhooks/retries',
+    );
     expect(received.map((entry) => entry.respondedWith)).toEqual([500, 200]);
   });
 

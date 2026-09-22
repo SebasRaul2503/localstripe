@@ -60,9 +60,8 @@ API       → http://localhost:9001      (reference: http://localhost:9001/docs)
   Events and Webhook Endpoints. Use `stripe-node` (or other Stripe SDKs) by pointing them at LocalStripe.
 - **Deterministic test cards** — each card number triggers one outcome: success, decline (with the
   decline code you need), 3D Secure, or asynchronous processing. Every other card number is rejected.
-- **Real payment lifecycle** — `requires_payment_method → requires_confirmation → requires_action →
-  processing → succeeded / canceled`, enforced by a state machine. Declines, 3DS challenges and
-  async settlement behave like Stripe's.
+- **Real payment lifecycle** — from `requires_payment_method` to `succeeded` or `canceled`, enforced
+  by a state machine. Declines, 3DS challenges and async settlement behave like Stripe's.
 - **Artificial delays** — globally, per scenario, per card, or per request, without blocking the server.
 - **Webhooks** — Stripe-compatible signatures (`stripe.webhooks.constructEvent` works), retries with
   backoff, full attempt history, manual retry and resend.
@@ -108,8 +107,16 @@ The first start builds the images (a few minutes). Then:
    ```
 
    ```json
-   { "id": "pi_local_01K...", "object": "payment_intent", "amount": 1990, "currency": "pen",
-     "status": "succeeded", "latest_charge": "ch_local_01K...", "livemode": false, "...": "..." }
+   {
+     "id": "pi_local_01K...",
+     "object": "payment_intent",
+     "amount": 1990,
+     "currency": "pen",
+     "status": "succeeded",
+     "latest_charge": "ch_local_01K...",
+     "livemode": false,
+     "...": "..."
+   }
    ```
 
 4. Or use the official Stripe SDK in your app:
@@ -137,12 +144,12 @@ More runnable examples live in [`examples/`](examples).
 
 `docker compose up -d` starts four services:
 
-| Service | What it does |
-| --- | --- |
-| `postgres` | PostgreSQL 16 with a persistent volume (`postgres-data`). Not exposed on the host. |
-| `migrate` | One-shot container that applies the versioned SQL migrations, then exits. |
-| `api` | The LocalStripe API and background worker on port **9001**. |
-| `dashboard` | The dashboard and its backend on port **3002**. |
+| Service     | What it does                                                                       |
+| ----------- | ---------------------------------------------------------------------------------- |
+| `postgres`  | PostgreSQL 16 with a persistent volume (`postgres-data`). Not exposed on the host. |
+| `migrate`   | One-shot container that applies the versioned SQL migrations, then exits.          |
+| `api`       | The LocalStripe API and background worker on port **9001**.                        |
+| `dashboard` | The dashboard and its backend on port **3002**.                                    |
 
 Services have health checks, restart policies and dependency conditions (`api` starts after
 migrations succeed; `dashboard` after `api` is healthy). Data survives `docker compose down` /
@@ -151,17 +158,17 @@ migrations succeed; `dashboard` after `api` is healthy). Data survives `docker c
 Configuration is done with environment variables, all optional. Copy [`.env.example`](.env.example)
 to `.env` to change them. The most useful ones:
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `API_PORT` / `DASHBOARD_PORT` | `9001` / `3002` | Host ports. |
-| `LOCALSTRIPE_BIND_ADDRESS` | `127.0.0.1` | Host interface the ports bind to. `0.0.0.0` exposes LocalStripe to your network. |
-| `LOCALSTRIPE_SECRET_KEY` / `LOCALSTRIPE_PUBLISHABLE_KEY` | generated | Pin your API keys. |
-| `PAYMENT_PROCESSING_DELAY_MS` | `0` | Global artificial delay. |
-| `PAYMENT_SCENARIO_DELAYS` | `processing=5000` | Per-scenario delays. |
-| `WEBHOOK_MAX_ATTEMPTS` / `WEBHOOK_RETRY_BASE_DELAY_MS` | `5` / `10000` | Webhook retry policy. |
-| `STRICT_PARAMS` | `true` | Reject unknown parameters, like Stripe. |
-| `SEED_DEMO_DATA` | `false` | Create labelled demo data on first start. |
-| `CORS_ORIGINS` | dashboard URL | Origins allowed to call the API from a browser. |
+| Variable                                                 | Default           | Description                                                                      |
+| -------------------------------------------------------- | ----------------- | -------------------------------------------------------------------------------- |
+| `API_PORT` / `DASHBOARD_PORT`                            | `9001` / `3002`   | Host ports.                                                                      |
+| `LOCALSTRIPE_BIND_ADDRESS`                               | `127.0.0.1`       | Host interface the ports bind to. `0.0.0.0` exposes LocalStripe to your network. |
+| `LOCALSTRIPE_SECRET_KEY` / `LOCALSTRIPE_PUBLISHABLE_KEY` | generated         | Pin your API keys.                                                               |
+| `PAYMENT_PROCESSING_DELAY_MS`                            | `0`               | Global artificial delay.                                                         |
+| `PAYMENT_SCENARIO_DELAYS`                                | `processing=5000` | Per-scenario delays.                                                             |
+| `WEBHOOK_MAX_ATTEMPTS` / `WEBHOOK_RETRY_BASE_DELAY_MS`   | `5` / `10000`     | Webhook retry policy.                                                            |
+| `STRICT_PARAMS`                                          | `true`            | Reject unknown parameters, like Stripe.                                          |
+| `SEED_DEMO_DATA`                                         | `false`           | Create labelled demo data on first start.                                        |
+| `CORS_ORIGINS`                                           | dashboard URL     | Origins allowed to call the API from a browser.                                  |
 
 Useful commands:
 
@@ -209,16 +216,16 @@ subscriptions or invoices.
 - Amounts are integers in the currency's minor unit (`1990` = S/ 19.90).
 - IDs look like `pi_local_01K...` — the `_local_` marker makes them impossible to confuse with real Stripe IDs.
 
-| Resource | Endpoints |
-| --- | --- |
-| Customers | `POST /v1/customers` · `GET /v1/customers/:id` · `POST /v1/customers/:id` · `DELETE /v1/customers/:id` · `GET /v1/customers` · `GET /v1/customers/:id/payment_methods` |
-| Payment methods | `POST /v1/payment_methods` · `GET /v1/payment_methods/:id` · `POST /v1/payment_methods/:id` · `GET /v1/payment_methods` · `POST .../attach` · `POST .../detach` |
-| Payment intents | `POST /v1/payment_intents` · `GET /v1/payment_intents/:id` · `POST /v1/payment_intents/:id` · `POST .../confirm` · `POST .../cancel` · `GET /v1/payment_intents` |
-| Charges | `GET /v1/charges/:id` · `GET /v1/charges` |
-| Refunds | `POST /v1/refunds` · `GET /v1/refunds/:id` · `POST /v1/refunds/:id` · `GET /v1/refunds` |
-| Checkout | `POST /v1/checkout/sessions` · `GET /v1/checkout/sessions/:id` · `GET /v1/checkout/sessions` · `GET .../line_items` · `POST .../expire` |
-| Events | `GET /v1/events/:id` · `GET /v1/events` |
-| Webhook endpoints | `POST /v1/webhook_endpoints` · `GET/POST/DELETE /v1/webhook_endpoints/:id` · `GET /v1/webhook_endpoints` |
+| Resource               | Endpoints                                                                                                                                                                  |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Customers              | `POST /v1/customers` · `GET /v1/customers/:id` · `POST /v1/customers/:id` · `DELETE /v1/customers/:id` · `GET /v1/customers` · `GET /v1/customers/:id/payment_methods`     |
+| Payment methods        | `POST /v1/payment_methods` · `GET /v1/payment_methods/:id` · `POST /v1/payment_methods/:id` · `GET /v1/payment_methods` · `POST .../attach` · `POST .../detach`            |
+| Payment intents        | `POST /v1/payment_intents` · `GET /v1/payment_intents/:id` · `POST /v1/payment_intents/:id` · `POST .../confirm` · `POST .../cancel` · `GET /v1/payment_intents`           |
+| Charges                | `GET /v1/charges/:id` · `GET /v1/charges`                                                                                                                                  |
+| Refunds                | `POST /v1/refunds` · `GET /v1/refunds/:id` · `POST /v1/refunds/:id` · `GET /v1/refunds`                                                                                    |
+| Checkout               | `POST /v1/checkout/sessions` · `GET /v1/checkout/sessions/:id` · `GET /v1/checkout/sessions` · `GET .../line_items` · `POST .../expire`                                    |
+| Events                 | `GET /v1/events/:id` · `GET /v1/events`                                                                                                                                    |
+| Webhook endpoints      | `POST /v1/webhook_endpoints` · `GET/POST/DELETE /v1/webhook_endpoints/:id` · `GET /v1/webhook_endpoints`                                                                   |
 | LocalStripe extensions | `/v1/localstripe/*`: test cards, stats, config, API keys, 3DS completion, checkout completion, `trigger`, `seed`, `reset`, webhook deliveries (list / retry), event resend |
 
 Errors follow Stripe's envelope and types (`card_error` → HTTP 402, `invalid_request_error`,
@@ -247,9 +254,9 @@ curl http://localhost:9001/v1/customers -H "Authorization: Bearer sk_test_local_
 curl http://localhost:9001/v1/customers -u sk_test_local_...:
 ```
 
-| Key | Prefix | Use |
-| --- | --- | --- |
-| Secret | `sk_test_...` | Server-side. Full access. |
+| Key         | Prefix        | Use                                                                                                                                              |
+| ----------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Secret      | `sk_test_...` | Server-side. Full access.                                                                                                                        |
 | Publishable | `pk_test_...` | Client-side. Only: create payment methods, retrieve/confirm a PaymentIntent with its `client_secret`, list test cards, complete a 3DS challenge. |
 
 - On first start LocalStripe generates a secret/publishable pair and prints it in the API logs
@@ -268,31 +275,31 @@ validated and immediately discarded — only the brand, last 4 digits and expiry
 
 Stripe-familiar numbers (so existing test suites keep working):
 
-| Number | Brand | Outcome | Error / decline code | Token |
-| --- | --- | --- | --- | --- |
-| `4242 4242 4242 4242` | Visa | ✅ Succeeds | | `pm_card_visa` |
-| `4000 0566 5566 5556` | Visa (debit) | ✅ Succeeds | | `pm_card_visa_debit` |
-| `5555 5555 5555 4444` | Mastercard | ✅ Succeeds | | `pm_card_mastercard` |
-| `3782 822463 10005` | Amex | ✅ Succeeds | | `pm_card_amex` |
-| `4000 0000 0000 0002` | Visa | ❌ Declined | `card_declined` / `generic_decline` | `pm_card_chargeDeclined` |
-| `4000 0000 0000 9995` | Visa | ❌ Declined | `card_declined` / `insufficient_funds` | `pm_card_chargeDeclinedInsufficientFunds` |
-| `4000 0000 0000 0069` | Visa | ❌ Declined | `expired_card` | `pm_card_chargeDeclinedExpiredCard` |
-| `4000 0000 0000 0127` | Visa | ❌ Declined | `incorrect_cvc` | `pm_card_chargeDeclinedIncorrectCvc` |
-| `4000 0000 0000 0119` | Visa | ❌ Declined | `processing_error` | `pm_card_chargeDeclinedProcessingError` |
-| `4000 0025 0000 3155` | Visa | 🔐 Requires 3D Secure | | `pm_card_authenticationRequired` |
-| `4000 0000 0000 3220` | Visa | 🔐 Requires 3D Secure 2 | | `pm_card_threeDSecure2Required` |
+| Number                | Brand        | Outcome                 | Error / decline code                   | Token                                     |
+| --------------------- | ------------ | ----------------------- | -------------------------------------- | ----------------------------------------- |
+| `4242 4242 4242 4242` | Visa         | ✅ Succeeds             |                                        | `pm_card_visa`                            |
+| `4000 0566 5566 5556` | Visa (debit) | ✅ Succeeds             |                                        | `pm_card_visa_debit`                      |
+| `5555 5555 5555 4444` | Mastercard   | ✅ Succeeds             |                                        | `pm_card_mastercard`                      |
+| `3782 822463 10005`   | Amex         | ✅ Succeeds             |                                        | `pm_card_amex`                            |
+| `4000 0000 0000 0002` | Visa         | ❌ Declined             | `card_declined` / `generic_decline`    | `pm_card_chargeDeclined`                  |
+| `4000 0000 0000 9995` | Visa         | ❌ Declined             | `card_declined` / `insufficient_funds` | `pm_card_chargeDeclinedInsufficientFunds` |
+| `4000 0000 0000 0069` | Visa         | ❌ Declined             | `expired_card`                         | `pm_card_chargeDeclinedExpiredCard`       |
+| `4000 0000 0000 0127` | Visa         | ❌ Declined             | `incorrect_cvc`                        | `pm_card_chargeDeclinedIncorrectCvc`      |
+| `4000 0000 0000 0119` | Visa         | ❌ Declined             | `processing_error`                     | `pm_card_chargeDeclinedProcessingError`   |
+| `4000 0025 0000 3155` | Visa         | 🔐 Requires 3D Secure   |                                        | `pm_card_authenticationRequired`          |
+| `4000 0000 0000 3220` | Visa         | 🔐 Requires 3D Secure 2 |                                        | `pm_card_threeDSecure2Required`           |
 
 LocalStripe-only series (never valid as real card numbers — they deliberately fail the Luhn check):
 
-| Number | Outcome |
-| --- | --- |
-| `4242 4242 4242 0001` | ✅ Succeeds |
-| `4242 4242 4242 0002` | ❌ Declined (`generic_decline`) |
-| `4242 4242 4242 0003` | 🔐 Requires 3D Secure |
+| Number                | Outcome                                                   |
+| --------------------- | --------------------------------------------------------- |
+| `4242 4242 4242 0001` | ✅ Succeeds                                               |
+| `4242 4242 4242 0002` | ❌ Declined (`generic_decline`)                           |
+| `4242 4242 4242 0003` | 🔐 Requires 3D Secure                                     |
 | `4242 4242 4242 0004` | ⏳ `processing`, then succeeds after the processing delay |
-| `4242 4242 4242 0005` | ❌ Declined (`insufficient_funds`) |
-| `4242 4242 4242 0006` | ❌ Declined (`expired_card`) |
-| `4242 4242 4242 0007` | ⏳ `processing`, then fails after the processing delay |
+| `4242 4242 4242 0005` | ❌ Declined (`insufficient_funds`)                        |
+| `4242 4242 4242 0006` | ❌ Declined (`expired_card`)                              |
+| `4242 4242 4242 0007` | ⏳ `processing`, then fails after the processing delay    |
 
 The behavior of Stripe-familiar numbers is **LocalStripe's own definition**; it mirrors Stripe's
 documented test cards but may differ in details. The catalog is also available at
@@ -364,12 +371,12 @@ anything else is rejected with `payment_intent_unexpected_state`.
 Simulate slow payment processing to test timeouts, spinners and race conditions. Delays are async
 timers: they never block the server, other requests, database connections or row locks.
 
-| Level | How | Example |
-| --- | --- | --- |
-| Global | `PAYMENT_PROCESSING_DELAY_MS` | `1500` |
-| Per scenario | `PAYMENT_SCENARIO_DELAYS` | `succeeded=500,declined=300,requires_action=1000,processing=5000` |
-| Per card | `delay_ms` in a custom catalog | `"delay_ms": 3000` |
-| Per request | `LocalStripe-Delay-Ms` header | `-H "LocalStripe-Delay-Ms: 2000"` |
+| Level        | How                            | Example                                                           |
+| ------------ | ------------------------------ | ----------------------------------------------------------------- |
+| Global       | `PAYMENT_PROCESSING_DELAY_MS`  | `1500`                                                            |
+| Per scenario | `PAYMENT_SCENARIO_DELAYS`      | `succeeded=500,declined=300,requires_action=1000,processing=5000` |
+| Per card     | `delay_ms` in a custom catalog | `"delay_ms": 3000`                                                |
+| Per request  | `LocalStripe-Delay-Ms` header  | `-H "LocalStripe-Delay-Ms: 2000"`                                 |
 
 Precedence: request header > card > scenario > global. Every delay is capped by `MAX_DELAY_MS`
 (default 60 s).
@@ -420,14 +427,14 @@ Full details: [docs/webhooks.md](docs/webhooks.md).
 
 Send `Idempotency-Key: <unique key>` on any `POST`:
 
-| Situation | Result |
-| --- | --- |
-| First request | Executed; the response (including 4xx such as declines) is stored for 24 h. |
-| Retry: same key, same parameters | The stored response is returned with `Idempotent-Replayed: true`. Nothing runs twice. |
-| Same key, different parameters | `400 idempotency_error` (`idempotency_key_reused`). |
-| Same key while the first request is still running | `409 idempotency_error` (`idempotency_key_in_use`) — retry later. |
-| Request rejected by validation | Not stored; the key can be reused. |
-| 5xx response | Not stored; retry safely with the same key. |
+| Situation                                         | Result                                                                                |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| First request                                     | Executed; the response (including 4xx such as declines) is stored for 24 h.           |
+| Retry: same key, same parameters                  | The stored response is returned with `Idempotent-Replayed: true`. Nothing runs twice. |
+| Same key, different parameters                    | `400 idempotency_error` (`idempotency_key_reused`).                                   |
+| Same key while the first request is still running | `409 idempotency_error` (`idempotency_key_in_use`) — retry later.                     |
+| Request rejected by validation                    | Not stored; the key can be reused.                                                    |
+| 5xx response                                      | Not stored; retry safely with the same key.                                           |
 
 Keys are scoped per API key. Concurrency safety comes from a database unique constraint, so exactly
 one of N simultaneous identical requests executes.
@@ -453,7 +460,12 @@ const session = await stripe.checkout.sessions.create({
   mode: 'payment',
   success_url: 'http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}',
   cancel_url: 'http://localhost:3000/cancel',
-  line_items: [{ price_data: { currency: 'usd', unit_amount: 1500, product_data: { name: 'T-shirt' } }, quantity: 2 }],
+  line_items: [
+    {
+      price_data: { currency: 'usd', unit_amount: 1500, product_data: { name: 'T-shirt' } },
+      quantity: 2,
+    },
+  ],
 });
 // Redirect the user to session.url → LocalStripe's hosted test checkout page.
 ```
@@ -467,19 +479,19 @@ a session without a browser: `POST /v1/localstripe/checkout/sessions/:id/complet
 
 **http://localhost:3002**
 
-| Page | What you can do |
-| --- | --- |
-| Overview | Totals (payments, succeeded, failed, processing, refunds, customers), volume per currency, webhook health, recent events and payments. |
-| Payments | Filter by status/customer, open a payment: timeline of events, charge, refunds, errors, 3DS actions; refund, cancel; **Create test payment**. |
-| Customers | Search, create, inspect payment methods and payments, delete. |
-| Payment methods | Brand, last 4, expiry, owner — card numbers are never stored. |
-| Refunds | List and detail. |
-| Checkout sessions | Create, open the hosted page, expire, inspect line items. |
-| Events | Filter by type, inspect payloads, see deliveries, resend. |
-| Webhooks | Manage endpoints and secrets; deliveries with status, attempts, last attempt and **Retry**. |
-| API keys | List, create (shown once), revoke. |
-| Test cards | The catalog, with copy buttons. |
-| Settings | Effective configuration, load demo data, reset data. |
+| Page              | What you can do                                                                                                                               |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overview          | Totals (payments, succeeded, failed, processing, refunds, customers), volume per currency, webhook health, recent events and payments.        |
+| Payments          | Filter by status/customer, open a payment: timeline of events, charge, refunds, errors, 3DS actions; refund, cancel; **Create test payment**. |
+| Customers         | Search, create, inspect payment methods and payments, delete.                                                                                 |
+| Payment methods   | Brand, last 4, expiry, owner — card numbers are never stored.                                                                                 |
+| Refunds           | List and detail.                                                                                                                              |
+| Checkout sessions | Create, open the hosted page, expire, inspect line items.                                                                                     |
+| Events            | Filter by type, inspect payloads, see deliveries, resend.                                                                                     |
+| Webhooks          | Manage endpoints and secrets; deliveries with status, attempts, last attempt and **Retry**.                                                   |
+| API keys          | List, create (shown once), revoke.                                                                                                            |
+| Test cards        | The catalog, with copy buttons.                                                                                                               |
+| Settings          | Effective configuration, load demo data, reset data.                                                                                          |
 
 The dashboard is served by a small backend-for-frontend that proxies `/api/v1/*` to the API with an
 internal key it reads from a shared Docker volume. The browser never sees a secret key.
@@ -491,11 +503,20 @@ A TypeScript SDK with typed resources lives in [`packages/sdk`](packages/sdk):
 ```ts
 import { LocalStripe } from '@localstripe/sdk';
 
-const localstripe = new LocalStripe({ apiKey: 'sk_test_local_...', baseUrl: 'http://localhost:9001' });
+const localstripe = new LocalStripe({
+  apiKey: 'sk_test_local_...',
+  baseUrl: 'http://localhost:9001',
+});
 
 const customer = await localstripe.customers.create({ email: 'ada@example.com' });
 const paymentIntent = await localstripe.paymentIntents.create(
-  { amount: 1990, currency: 'pen', customer: customer.id, payment_method: 'pm_card_visa', confirm: true },
+  {
+    amount: 1990,
+    currency: 'pen',
+    customer: customer.id,
+    payment_method: 'pm_card_visa',
+    confirm: true,
+  },
   { idempotencyKey: 'order-1001' },
 );
 
@@ -541,11 +562,11 @@ The official `stripe` Node SDK is exercised against it in CI (customers, payment
 intents incl. declines and 3DS, refunds, Checkout Sessions, webhook endpoints, idempotency and
 `webhooks.constructEvent`).
 
-| | |
-| --- | --- |
-| **Supported** | Customers, Refunds, Events, Webhook endpoints & signatures, Idempotency-Key, pagination, error envelope, form-encoded bodies, `pm_card_*` test tokens |
+|                         |                                                                                                                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Supported**           | Customers, Refunds, Events, Webhook endpoints & signatures, Idempotency-Key, pagination, error envelope, form-encoded bodies, `pm_card_*` test tokens             |
 | **Partially supported** | Payment Intents (no manual capture), Payment Methods (cards only), Charges (read-only), Checkout Sessions (`mode=payment`, inline `price_data`), publishable keys |
-| **Not supported** | Products/Prices, Subscriptions, Invoices, Connect, Disputes, Payouts, Balance, Setup Intents, Stripe.js/Elements, `expand[]`, search endpoints, API versioning |
+| **Not supported**       | Products/Prices, Subscriptions, Invoices, Connect, Disputes, Payouts, Balance, Setup Intents, Stripe.js/Elements, `expand[]`, search endpoints, API versioning    |
 
 The full, honest matrix: [docs/stripe-compatibility.md](docs/stripe-compatibility.md).
 
@@ -597,22 +618,22 @@ pnpm db:test:up            # disposable Postgres on :55432
 Run the API with hot reload, then the dashboard (see [CONTRIBUTING.md](CONTRIBUTING.md) for the
 exact commands). Useful scripts:
 
-| Command | |
-| --- | --- |
-| `pnpm build` | Build every package and app |
-| `pnpm lint` / `pnpm format` | ESLint / Prettier |
-| `pnpm typecheck` | TypeScript across the monorepo |
-| `pnpm test:unit` | Unit tests |
-| `pnpm test:integration` | API + PostgreSQL integration tests |
+| Command                                           |                                                |
+| ------------------------------------------------- | ---------------------------------------------- |
+| `pnpm build`                                      | Build every package and app                    |
+| `pnpm lint` / `pnpm format`                       | ESLint / Prettier                              |
+| `pnpm typecheck`                                  | TypeScript across the monorepo                 |
+| `pnpm test:unit`                                  | Unit tests                                     |
+| `pnpm test:integration`                           | API + PostgreSQL integration tests             |
 | `pnpm e2e:up` → `pnpm test:e2e` → `pnpm e2e:down` | End-to-end tests against the real Docker stack |
 
 ## Testing
 
-| Level | Where | What |
-| --- | --- | --- |
-| Unit | `apps/api/test/unit`, `packages/*/test`, `apps/*/…/*.test.ts` | State machine, test card catalog, delays, card validation, refund math, retry policy, idempotency hashing, signatures, validation, SDK, CLI, dashboard helpers and BFF. |
-| Integration | `apps/api/test/integration` | The HTTP API with a real PostgreSQL: every resource, lifecycle and scenario, webhooks with a real receiver, idempotency (incl. concurrency), refund concurrency, delays, auth, errors. |
-| End-to-end | `tests/e2e` | The real `docker compose` stack driven by the **official Stripe SDK**: success, decline, 3DS, processing, delays, refunds, checkout, idempotency, webhook signatures, retries and manual retry, dashboard proxy, persistence across restarts. |
+| Level       | Where                                                         | What                                                                                                                                                                                                                                          |
+| ----------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit        | `apps/api/test/unit`, `packages/*/test`, `apps/*/…/*.test.ts` | State machine, test card catalog, delays, card validation, refund math, retry policy, idempotency hashing, signatures, validation, SDK, CLI, dashboard helpers and BFF.                                                                       |
+| Integration | `apps/api/test/integration`                                   | The HTTP API with a real PostgreSQL: every resource, lifecycle and scenario, webhooks with a real receiver, idempotency (incl. concurrency), refund concurrency, delays, auth, errors.                                                        |
+| End-to-end  | `tests/e2e`                                                   | The real `docker compose` stack driven by the **official Stripe SDK**: success, decline, 3DS, processing, delays, refunds, checkout, idempotency, webhook signatures, retries and manual retry, dashboard proxy, persistence across restarts. |
 
 CI (GitHub Actions) runs lint, format, typecheck, unit, integration, build, Docker image builds and
 the end-to-end suite on every push and pull request.

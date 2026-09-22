@@ -21,7 +21,11 @@ createServer((req, res) => {
     if (req.method === 'GET' && url.pathname === '/health') return send(res, 200, { status: 'ok' });
     if (req.method === 'GET' && url.pathname === '/received') {
       const eventId = url.searchParams.get('event');
-      return send(res, 200, eventId ? received.filter((entry) => entry.eventId === eventId) : received);
+      return send(
+        res,
+        200,
+        eventId ? received.filter((entry) => entry.eventId === eventId) : received,
+      );
     }
     if (req.method === 'DELETE' && url.pathname === '/received') {
       received.length = 0;
@@ -43,7 +47,13 @@ createServer((req, res) => {
       } catch {
         // Recorded as-is; the test decides what to do with an unparsable body.
       }
-      received.push({ eventId, path: url.pathname, headers: req.headers, body, respondedWith: failed ? 500 : 200 });
+      received.push({
+        eventId,
+        path: url.pathname,
+        headers: req.headers,
+        body,
+        respondedWith: failed ? 500 : 200,
+      });
       return send(res, failed ? 500 : 200, { received: !failed });
     }
     send(res, 404, { error: 'not found' });

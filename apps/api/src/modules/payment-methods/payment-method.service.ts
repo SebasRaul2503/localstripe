@@ -244,9 +244,13 @@ export class PaymentMethodService {
     });
   }
 
-  async attach(id: string, customerId: string, origin: Origin): Promise<PaymentMethod> {
+  async attach(idOrToken: string, customerId: string, origin: Origin): Promise<PaymentMethod> {
     return this.db.transaction().execute(async (tx) => {
       await this.customers.requireActive(tx, customerId);
+      // Like Stripe test mode, attaching a `pm_card_*` token attaches a fresh payment method.
+      const id = this.catalog.findByToken(idOrToken)
+        ? (await this.resolveForPayment(tx, idOrToken)).id
+        : idOrToken;
       const current = await this.lock(tx, id);
       if (current.customerId && current.customerId !== customerId) {
         throw unexpectedState(

@@ -145,26 +145,27 @@ export class WebhookDeliveryService {
       .executeTakeFirst();
     if (!event) throw notFound('event', eventId);
     await this.db.transaction().execute(async (tx) => {
+      // Only currently enabled, subscribed endpoints: disabled or deleted ones are left untouched.
       const endpoints = await subscribedEndpointIds(tx, event.type);
-      if (endpoints.length > 0) {
-        await tx
-          .insertInto('webhookDeliveries')
-          .values(
-            endpoints.map((endpointId) => ({
-              id: newId('webhookDelivery'),
-              eventId,
-              webhookEndpointId: endpointId,
-              status: 'pending' as const,
-              nextAttemptAt: new Date(),
-            })),
-          )
-          .onConflict((oc) => oc.columns(['eventId', 'webhookEndpointId']).doNothing())
-          .execute();
-      }
+      if (endpoints.length === 0) return;
+      await tx
+        .insertInto('webhookDeliveries')
+        .values(
+          endpoints.map((endpointId) => ({
+            id: newId('webhookDelivery'),
+            eventId,
+            webhookEndpointId: endpointId,
+            status: 'pending' as const,
+            nextAttemptAt: new Date(),
+          })),
+        )
+        .onConflict((oc) => oc.columns(['eventId', 'webhookEndpointId']).doNothing())
+        .execute();
       await tx
         .updateTable('webhookDeliveries')
         .set({ status: 'pending', nextAttemptAt: new Date(), lockedUntil: null })
         .where('eventId', '=', eventId)
+        .where('webhookEndpointId', 'in', endpoints)
         .execute();
     });
     return this.list({ event: eventId }, { limit: 100 });

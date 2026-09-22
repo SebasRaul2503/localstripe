@@ -20,7 +20,10 @@ beforeAll(async () => {
 
 describe('successful payment', () => {
   it('customer → payment method → payment intent → confirm → succeeded → event → signed webhook', async () => {
-    const customer = await stripe.customers.create({ email: 'e2e-success@example.test', name: 'E2E' });
+    const customer = await stripe.customers.create({
+      email: 'e2e-success@example.test',
+      name: 'E2E',
+    });
     const paymentMethod = await createCardPaymentMethod('4242 4242 4242 4242');
     expect(paymentMethod.card?.last4).toBe('4242');
 
@@ -67,7 +70,9 @@ describe('declined payment', () => {
       payment_method: paymentMethod.id,
     });
 
-    const error = await stripe.paymentIntents.confirm(created.id).catch((caught: unknown) => caught);
+    const error = await stripe.paymentIntents
+      .confirm(created.id)
+      .catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(Stripe.errors.StripeCardError);
     const cardError = error as Stripe.errors.StripeCardError;
     expect(cardError.code).toBe('card_declined');
@@ -82,7 +87,9 @@ describe('declined payment', () => {
   });
 
   it('rejects any card number outside the test catalog', async () => {
-    const error = await createCardPaymentMethod('4111111111111111').catch((caught: unknown) => caught);
+    const error = await createCardPaymentMethod('4111111111111111').catch(
+      (caught: unknown) => caught,
+    );
     expect(error).toBeInstanceOf(Stripe.errors.StripeCardError);
     expect((error as Stripe.errors.StripeCardError).code).toBe('incorrect_number');
   });
@@ -109,7 +116,10 @@ describe('3D Secure (requires_action)', () => {
       method: 'POST',
       redirect: 'manual',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ client_secret: paymentIntent.client_secret!, outcome: 'succeed' }),
+      body: new URLSearchParams({
+        client_secret: paymentIntent.client_secret!,
+        outcome: 'succeed',
+      }),
     });
     expect(submit.status).toBe(303);
     const location = new URL(submit.headers.get('location')!);
@@ -127,9 +137,13 @@ describe('3D Secure (requires_action)', () => {
       payment_method: 'pm_card_authenticationRequired',
       confirm: true,
     });
-    const failed = await http('POST', `/v1/localstripe/payment_intents/${paymentIntent.id}/authenticate`, {
-      body: { outcome: 'fail' },
-    });
+    const failed = await http(
+      'POST',
+      `/v1/localstripe/payment_intents/${paymentIntent.id}/authenticate`,
+      {
+        body: { outcome: 'fail' },
+      },
+    );
     expect(failed.body['status']).toBe('requires_payment_method');
     await findEvent(paymentIntent.id, 'payment_intent.payment_failed');
   });
@@ -193,4 +207,3 @@ describe('asynchronous processing and artificial delay', () => {
     await findEvent(paymentIntent.id, 'payment_intent.canceled');
   });
 });
-

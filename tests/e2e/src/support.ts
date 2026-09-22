@@ -82,7 +82,9 @@ export const sink = {
     return (await response.json()) as SinkDelivery[];
   },
   async failNext(endpointName: string, count: number) {
-    await fetch(`${SINK_URL}/fail-next?path=/webhooks/${endpointName}&count=${count}`, { method: 'POST' });
+    await fetch(`${SINK_URL}/fail-next?path=/webhooks/${endpointName}&count=${count}`, {
+      method: 'POST',
+    });
   },
   async clear() {
     await fetch(`${SINK_URL}/received`, { method: 'DELETE' });
@@ -111,11 +113,13 @@ export async function findEvent(objectId: string, type: string): Promise<LocalSt
   );
 }
 
-export async function waitForDelivery(eventId: string, predicate: (d: SinkDelivery) => boolean = () => true) {
-  return waitFor(
-    async () => (await sink.received(eventId)).find(predicate),
-    { message: `webhook delivery of ${eventId}` },
-  );
+export async function waitForDelivery(
+  eventId: string,
+  predicate: (d: SinkDelivery) => boolean = () => true,
+) {
+  return waitFor(async () => (await sink.received(eventId)).find(predicate), {
+    message: `webhook delivery of ${eventId}`,
+  });
 }
 
 export async function createCardPaymentMethod(number: string) {

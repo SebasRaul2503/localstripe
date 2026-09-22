@@ -15,16 +15,16 @@ containers (API and dashboard) plus Postgres.
 
 ## Why these choices
 
-| Decision | Reason |
-| --- | --- |
-| **TypeScript everywhere** (API, SDK, CLI, dashboard) | One language and one set of shared types (`@localstripe/contracts`) from the database row to the React table. The main audience (web developers testing Stripe integrations) can read and extend it. |
-| **Fastify + Zod** | Fast, schema-first HTTP. Zod schemas validate requests and generate the OpenAPI document, so docs cannot drift from behavior. |
-| **PostgreSQL** | Real persistence and, crucially, real concurrency primitives: row locks (`SELECT … FOR UPDATE`), unique constraints and `SKIP LOCKED` give correct refunds, idempotency and job processing under concurrency. |
-| **No Redis** | Everything Redis would do here (job queue, idempotency, rate-limit state) is either done in Postgres or in memory. One less service to run and reason about. |
-| **Kysely (query builder), not an ORM** | Type-safe SQL that stays visible and explicit. |
-| **Versioned SQL migrations** (`node-pg-migrate`) run by a one-shot `migrate` container | The app never creates tables on the fly; schema changes are reviewed SQL. The migrator takes an advisory lock. |
-| **Modular monolith, not microservices** | The domain is small and highly transactional (a confirmation writes a charge, updates the payment, records events and enqueues webhook deliveries atomically). Module boundaries keep it evolvable; the worker can already run as a separate process (`LOCALSTRIPE_ROLE=worker`). |
-| **Backend-for-frontend for the dashboard** | The browser only talks to the dashboard server, which injects an internal API key. Secret keys never reach the browser. |
+| Decision                                                                               | Reason                                                                                                                                                                                                                                                                            |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **TypeScript everywhere** (API, SDK, CLI, dashboard)                                   | One language and one set of shared types (`@localstripe/contracts`) from the database row to the React table. The main audience (web developers testing Stripe integrations) can read and extend it.                                                                              |
+| **Fastify + Zod**                                                                      | Fast, schema-first HTTP. Zod schemas validate requests and generate the OpenAPI document, so docs cannot drift from behavior.                                                                                                                                                     |
+| **PostgreSQL**                                                                         | Real persistence and, crucially, real concurrency primitives: row locks (`SELECT … FOR UPDATE`), unique constraints and `SKIP LOCKED` give correct refunds, idempotency and job processing under concurrency.                                                                     |
+| **No Redis**                                                                           | Everything Redis would do here (job queue, idempotency, rate-limit state) is either done in Postgres or in memory. One less service to run and reason about.                                                                                                                      |
+| **Kysely (query builder), not an ORM**                                                 | Type-safe SQL that stays visible and explicit.                                                                                                                                                                                                                                    |
+| **Versioned SQL migrations** (`node-pg-migrate`) run by a one-shot `migrate` container | The app never creates tables on the fly; schema changes are reviewed SQL. The migrator takes an advisory lock.                                                                                                                                                                    |
+| **Modular monolith, not microservices**                                                | The domain is small and highly transactional (a confirmation writes a charge, updates the payment, records events and enqueues webhook deliveries atomically). Module boundaries keep it evolvable; the worker can already run as a separate process (`LOCALSTRIPE_ROLE=worker`). |
+| **Backend-for-frontend for the dashboard**                                             | The browser only talks to the dashboard server, which injects an internal API key. Secret keys never reach the browser.                                                                                                                                                           |
 
 ## Repository layout
 
@@ -56,21 +56,21 @@ examples/              runnable integration examples
 
 Each module under `apps/api/src/modules/` owns one capability:
 
-| Module | Responsibility |
-| --- | --- |
-| `customers` | Customer CRUD |
-| `payment-methods` | Card payment methods, catalog-only card validation |
-| `test-cards` | The test card catalog and delay resolution |
+| Module            | Responsibility                                               |
+| ----------------- | ------------------------------------------------------------ |
+| `customers`       | Customer CRUD                                                |
+| `payment-methods` | Card payment methods, catalog-only card validation           |
+| `test-cards`      | The test card catalog and delay resolution                   |
 | `payment-intents` | Lifecycle orchestration, **state machine**, outcome decision |
-| `charges` | Charges produced by confirmations |
-| `refunds` | Refund rules and creation |
-| `checkout` | Checkout Sessions, reacting to payment lifecycle changes |
-| `events` | Event log (the transactional outbox) |
-| `webhooks` | Endpoints, deliveries, signing dispatcher, retry policy |
-| `idempotency` | `Idempotency-Key` storage and replay |
-| `api-keys` | Key hashing, bootstrap, management |
-| `hosted` | Server-rendered hosted checkout and 3DS pages |
-| `localstripe` | Extension endpoints: stats, triggers, demo data, reset |
+| `charges`         | Charges produced by confirmations                            |
+| `refunds`         | Refund rules and creation                                    |
+| `checkout`        | Checkout Sessions, reacting to payment lifecycle changes     |
+| `events`          | Event log (the transactional outbox)                         |
+| `webhooks`        | Endpoints, deliveries, signing dispatcher, retry policy      |
+| `idempotency`     | `Idempotency-Key` storage and replay                         |
+| `api-keys`        | Key hashing, bootstrap, management                           |
+| `hosted`          | Server-rendered hosted checkout and 3DS pages                |
+| `localstripe`     | Extension endpoints: stats, triggers, demo data, reset       |
 
 Within a module:
 

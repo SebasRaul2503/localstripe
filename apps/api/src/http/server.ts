@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import Fastify, { type FastifyBaseLogger, type FastifyInstance } from 'fastify';
+import Fastify, { LogController, type FastifyBaseLogger, type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
@@ -18,6 +18,7 @@ import type { Db } from '../infrastructure/database.js';
 import type { Metrics } from '../infrastructure/metrics.js';
 import type { Services } from '../app/services.js';
 import { randomToken } from '../shared/ids.js';
+import { ApiError } from '../shared/errors.js';
 import { registerErrorHandling } from './errors.js';
 import { registerAuthentication } from './auth.js';
 import { registerIdempotency } from './idempotency.js';
@@ -55,8 +56,10 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
     bodyLimit: config.http.bodyLimitBytes,
     trustProxy: false,
     genReqId: () => `req_${randomToken(16)}`,
-    requestIdLogLabel: 'requestId',
-    disableRequestLogging: true,
+    logController: new LogController({
+      requestIdLogLabel: 'requestId',
+      disableRequestLogging: true,
+    }),
     routerOptions: {
       querystringParser: (query: string) => parseForm(query),
       ignoreTrailingSlash: true,
@@ -76,6 +79,31 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
         done(null, parseForm(body as string));
       } catch (error) {
         done(error as Error, undefined);
+      }
+    },
+  );
+
+  // Some clients send `Content-Type: application/json` with an empty body (e.g. on DELETE).
+  app.removeContentTypeParser('application/json');
+  app.addContentTypeParser(
+    'application/json',
+    { parseAs: 'string', bodyLimit: config.http.bodyLimitBytes },
+    (_request, body, done) => {
+      if ((body as string).trim() === '') return done(null, undefined);
+      try {
+        done(null, JSON.parse(body as string));
+      } catch {
+        done(
+          new ApiError(
+            400,
+            'invalid_request_error',
+            'Invalid request body: could not parse JSON.',
+            {
+              code: 'malformed_request',
+            },
+          ),
+          undefined,
+        );
       }
     },
   );

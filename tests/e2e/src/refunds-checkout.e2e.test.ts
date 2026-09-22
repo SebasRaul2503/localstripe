@@ -50,7 +50,10 @@ describe('checkout sessions', () => {
       success_url: 'http://localhost:3000/success?session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'http://localhost:3000/cancel',
       line_items: [
-        { price_data: { currency: 'usd', unit_amount: 1500, product_data: { name: 'T-shirt' } }, quantity: 2 },
+        {
+          price_data: { currency: 'usd', unit_amount: 1500, product_data: { name: 'T-shirt' } },
+          quantity: 2,
+        },
       ],
     });
     expect(session.amount_total).toBe(3000);
@@ -67,7 +70,9 @@ describe('checkout sessions', () => {
       body: new URLSearchParams({ test_card: 'visa_success', expiry: '12/40', cvc: '123' }),
     });
     expect(submit.status).toBe(303);
-    expect(submit.headers.get('location')).toBe(`http://localhost:3000/success?session_id=${session.id}`);
+    expect(submit.headers.get('location')).toBe(
+      `http://localhost:3000/success?session_id=${session.id}`,
+    );
 
     const completed = await stripe.checkout.sessions.retrieve(session.id);
     expect(completed.status).toBe('complete');
@@ -86,7 +91,10 @@ describe('checkout sessions', () => {
       mode: 'payment',
       success_url: 'http://localhost:3000/success',
       line_items: [
-        { price_data: { currency: 'usd', unit_amount: 900, product_data: { name: 'Mug' } }, quantity: 1 },
+        {
+          price_data: { currency: 'usd', unit_amount: 900, product_data: { name: 'Mug' } },
+          quantity: 1,
+        },
       ],
     });
     const submit = await fetch(`${API_URL}/checkout/${session.id}/pay`, {

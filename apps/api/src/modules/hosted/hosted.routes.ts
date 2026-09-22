@@ -152,6 +152,8 @@ export function hostedRoutes(services: Services): FastifyPluginAsyncZod {
             html`<div class="card"><h1>Checkout session not found</h1></div>`,
             404,
           );
+        // A double-submitted form must not show the payment form again once the session is paid.
+        if (session.status === 'complete') return reply.redirect(successRedirect(session), 303);
         const lineItems = await services.checkoutSessions.listLineItems(session.id);
 
         const number =

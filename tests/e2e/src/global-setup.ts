@@ -16,7 +16,5 @@ export default async function setup() {
     if ((await isUp(`${API_URL}/ready`)) && (await isUp(`${SINK_URL}/health`))) return;
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-  throw new Error(
-    `LocalStripe stack is not reachable at ${API_URL}. Start it with: pnpm e2e:up`,
-  );
+  throw new Error(`LocalStripe stack is not reachable at ${API_URL}. Start it with: pnpm e2e:up`);
 }

@@ -71,7 +71,11 @@ With the LocalStripe SDK:
 ```ts
 import { LocalStripe } from '@localstripe/sdk';
 
-const event = LocalStripe.webhooks.constructEvent(rawBody, req.headers['localstripe-signature'], secret);
+const event = LocalStripe.webhooks.constructEvent(
+  rawBody,
+  req.headers['localstripe-signature'],
+  secret,
+);
 ```
 
 With the official Stripe SDK (works unchanged, because the scheme and the `Stripe-Signature` header match):
@@ -88,11 +92,15 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 function verify(rawBody: string, header: string, secret: string, toleranceSeconds = 300) {
   const parts = header.split(',').map((part) => part.split('='));
   const timestamp = parts.find(([key]) => key === 't')?.[1];
-  const signatures = parts.filter(([key]) => key === 'v1').map(([, value]) => Buffer.from(value ?? ''));
+  const signatures = parts
+    .filter(([key]) => key === 'v1')
+    .map(([, value]) => Buffer.from(value ?? ''));
   const expected = Buffer.from(
     createHmac('sha256', secret).update(`${timestamp}.${rawBody}`).digest('hex'),
   );
-  const valid = signatures.some((sig) => sig.length === expected.length && timingSafeEqual(sig, expected));
+  const valid = signatures.some(
+    (sig) => sig.length === expected.length && timingSafeEqual(sig, expected),
+  );
   const fresh = Math.abs(Date.now() / 1000 - Number(timestamp)) <= toleranceSeconds;
   return valid && fresh;
 }
