@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+  - tests/e2e
+  - tests/e2e/webhook-sink
+
+onlyBuiltDependencies:
+  - esbuild

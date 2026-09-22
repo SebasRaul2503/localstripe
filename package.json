@@ -1,0 +1,37 @@
+{
+  "name": "localstripe",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local Stripe-like payment mock/emulator for development and automated testing. Does not process real payments.",
+  "license": "MIT",
+  "packageManager": "pnpm@10.33.4",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter \"./packages/**\" --filter \"./apps/**\" build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm test:unit && pnpm test:integration",
+    "test:unit": "pnpm -r test:unit",
+    "test:integration": "pnpm --filter @localstripe/api test:integration",
+    "test:e2e": "pnpm --filter @localstripe/e2e test",
+    "db:test:up": "docker run -d --rm --name localstripe-test-db -e POSTGRES_USER=localstripe -e POSTGRES_PASSWORD=localstripe -e POSTGRES_DB=localstripe_test -p 55432:5432 postgres:16-alpine",
+    "db:test:down": "docker stop localstripe-test-db",
+    "e2e:up": "docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait",
+    "e2e:down": "docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^22.10.0",
+    "eslint": "^9.39.0",
+    "eslint-plugin-react-hooks": "^7.0.0",
+    "globals": "^16.5.0",
+    "prettier": "^3.6.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.0"
+  },
+  "type": "module"
+}
