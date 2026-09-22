@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 # LocalStripe dashboard: static React SPA + backend-for-frontend. Build context: repository root.
 
-FROM node:22-alpine AS base
+FROM node:26-alpine AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 RUN corepack enable
 WORKDIR /repo
@@ -18,7 +18,7 @@ RUN pnpm --filter @localstripe/contracts build && pnpm --filter @localstripe/das
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm --filter @localstripe/dashboard deploy --prod --legacy /out
 
-FROM node:22-alpine AS runtime
+FROM node:26-alpine AS runtime
 ENV NODE_ENV=production \
     DASHBOARD_PORT=3002 \
     LOCALSTRIPE_SHARED_DIR=/var/lib/localstripe/shared
