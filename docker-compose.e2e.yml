@@ -1,0 +1,22 @@
+# Overrides for the end-to-end test suite:
+#   docker compose --env-file tests/e2e/e2e.env -f docker-compose.yml -f docker-compose.e2e.yml up -d --build --wait
+# Adds a webhook sink that records every delivery, and uses short delays so the suite runs fast.
+
+services:
+  api:
+    environment:
+      WORKER_POLL_INTERVAL_MS: '100'
+
+  webhook-sink:
+    image: node:22-alpine
+    command: ['node', '/sink/server.mjs']
+    working_dir: /sink
+    volumes:
+      - ./tests/e2e/webhook-sink:/sink:ro
+    ports:
+      - '127.0.0.1:${WEBHOOK_SINK_PORT:-14242}:4242'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:4242/health > /dev/null || exit 1']
+      interval: 3s
+      timeout: 2s
+      retries: 20

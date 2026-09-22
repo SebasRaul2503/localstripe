@@ -1,0 +1,112 @@
+# LocalStripe — local Stripe-like payment mock. NOT a payment processor: it never moves money.
+#
+#   docker compose up -d
+#
+#   Dashboard → http://localhost:3002
+#   API       → http://localhost:9001   (docs: http://localhost:9001/docs)
+#
+# Every setting has a default; override any of them in a `.env` file (see .env.example).
+
+name: localstripe
+
+x-api-environment: &api-environment
+  NODE_ENV: production
+  DATABASE_URL: postgres://${POSTGRES_USER:-localstripe}:${POSTGRES_PASSWORD:-localstripe}@postgres:5432/${POSTGRES_DB:-localstripe}
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+  PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:${API_PORT:-9001}}
+  DASHBOARD_URL: ${DASHBOARD_URL:-http://localhost:${DASHBOARD_PORT:-3002}}
+  CORS_ORIGINS: ${CORS_ORIGINS:-}
+  LOCALSTRIPE_SECRET_KEY: ${LOCALSTRIPE_SECRET_KEY:-}
+  LOCALSTRIPE_PUBLISHABLE_KEY: ${LOCALSTRIPE_PUBLISHABLE_KEY:-}
+  PAYMENT_PROCESSING_DELAY_MS: ${PAYMENT_PROCESSING_DELAY_MS:-0}
+  PAYMENT_SCENARIO_DELAYS: ${PAYMENT_SCENARIO_DELAYS:-processing=5000}
+  MAX_DELAY_MS: ${MAX_DELAY_MS:-60000}
+  TEST_CARD_CATALOG_PATH: ${TEST_CARD_CATALOG_PATH:-}
+  WEBHOOK_MAX_ATTEMPTS: ${WEBHOOK_MAX_ATTEMPTS:-5}
+  WEBHOOK_RETRY_BASE_DELAY_MS: ${WEBHOOK_RETRY_BASE_DELAY_MS:-10000}
+  WEBHOOK_TIMEOUT_MS: ${WEBHOOK_TIMEOUT_MS:-10000}
+  STRICT_PARAMS: ${STRICT_PARAMS:-true}
+  RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-1000}
+  SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-localstripe}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localstripe}
+      POSTGRES_DB: ${POSTGRES_DB:-localstripe}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    image: localstripe/api:local
+    command: ['node', 'dist/migrate.js']
+    environment: *api-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+    image: localstripe/api:local
+    restart: unless-stopped
+    environment: *api-environment
+    ports:
+      - '${LOCALSTRIPE_BIND_ADDRESS:-127.0.0.1}:${API_PORT:-9001}:9001'
+    volumes:
+      - localstripe-shared:/var/lib/localstripe/shared
+    # Lets webhooks reach apps running on your machine via http://host.docker.internal:<port>.
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:9001/ready > /dev/null || exit 1']
+      interval: 5s
+      timeout: 3s
+      start_period: 20s
+      retries: 20
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/dashboard.Dockerfile
+    image: localstripe/dashboard:local
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      LOCALSTRIPE_API_INTERNAL_URL: http://api:9001
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:${API_PORT:-9001}}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - '${LOCALSTRIPE_BIND_ADDRESS:-127.0.0.1}:${DASHBOARD_PORT:-3002}:3002'
+    volumes:
+      # The API writes the dashboard's internal key here; the secret never reaches the browser.
+      - localstripe-shared:/var/lib/localstripe/shared:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://127.0.0.1:3002/healthz > /dev/null || exit 1']
+      interval: 5s
+      timeout: 3s
+      start_period: 10s
+      retries: 20
+
+volumes:
+  postgres-data:
+  localstripe-shared:
