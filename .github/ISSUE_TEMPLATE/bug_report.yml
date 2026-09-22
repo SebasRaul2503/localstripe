@@ -1,0 +1,41 @@
+name: Bug report
+description: Something in LocalStripe does not behave as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please never paste real card numbers or real Stripe keys — LocalStripe only needs its own test cards and local keys.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Include the request you sent (method, path, params) and the response (status, body, `request-id` header).
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      description: If you expected Stripe-compatible behavior, link the Stripe docs and check docs/stripe-compatibility.md.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. docker compose up -d
+        2. curl -u sk_test_...: http://localhost:9001/v1/...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: LocalStripe version / commit
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Output of `docker compose logs api` around the failing request.
+      render: shell

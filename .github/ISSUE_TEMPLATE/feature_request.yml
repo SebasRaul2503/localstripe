@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest a new resource, endpoint or developer-experience improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to test or build?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: For Stripe-compatible features, link the Stripe API reference for the endpoint or object.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

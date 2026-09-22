@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    name: Lint, typecheck, unit tests, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build shared packages
+        run: pnpm build:packages
+      - name: Lint
+        run: pnpm lint
+      - name: Check formatting
+        run: pnpm format:check
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Unit tests
+        run: pnpm test:unit
+      - name: Build
+        run: pnpm build
+
+  integration:
+    name: Integration tests (API + PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: localstripe
+          POSTGRES_PASSWORD: localstripe
+          POSTGRES_DB: localstripe_test
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U localstripe -d localstripe_test"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      TEST_DATABASE_URL: postgres://localstripe:localstripe@localhost:55432/localstripe_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:packages
+      - name: Integration tests
+        run: pnpm test:integration
+
+  e2e:
+    name: Docker build + end-to-end tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:packages
+      - name: Build images and start the stack (docker compose up)
+        run: pnpm e2e:up
+      - name: Health checks
+        run: |
+          curl -fsS http://localhost:19901/health
+          curl -fsS http://localhost:19901/ready
+          curl -fsS http://localhost:13902/healthz
+      - name: End-to-end tests
+        run: pnpm test:e2e
+      - name: Persistence across restarts
+        run: pnpm test:e2e:persistence
+      - name: Stack logs
+        if: failure()
+        run: pnpm e2e:logs
+      - name: Tear down
+        if: always()
+        run: pnpm e2e:down
