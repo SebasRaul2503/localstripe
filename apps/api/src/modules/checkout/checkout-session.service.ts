@@ -343,33 +343,13 @@ export class CheckoutSessionService implements PaymentIntentListener {
       ? (await this.paymentMethods.create({ type: 'card', card: input.card })).id
       : input.payment_method!;
 
-    let paymentIntentId = session.paymentIntentId;
-    if (paymentIntentId) {
-      const existing = await this.paymentIntents.requireRow(this.db, paymentIntentId);
-      if (existing.status !== 'requires_payment_method') {
-        throw unexpectedState(
-          'checkout_session_unexpected_state',
-          `The payment for this session is ${existing.status}; it cannot be retried.`,
-        );
-      }
-    } else {
-      const created = await this.paymentIntents.create(
-        {
-          amount: session.amountTotal,
-          currency: session.currency,
-          customer: session.customerId ?? undefined,
-          receipt_email: session.customerEmail,
-          metadata: session.metadata,
-        },
-        ctx,
-        { checkoutSessionId: session.id },
+    const paymentIntentId = session.paymentIntentId ?? (await this.attachPaymentIntent(id, ctx));
+    const existing = await this.paymentIntents.requireRow(this.db, paymentIntentId);
+    if (existing.status !== 'requires_payment_method') {
+      throw unexpectedState(
+        'checkout_session_unexpected_state',
+        `The payment for this session is ${existing.status}; it cannot be retried.`,
       );
-      paymentIntentId = created.id;
-      await this.db
-        .updateTable('checkoutSessions')
-        .set({ paymentIntentId })
-        .where('id', '=', session.id)
-        .execute();
     }
 
     const paymentIntent = await this.paymentIntents.confirm(
@@ -378,6 +358,41 @@ export class CheckoutSessionService implements PaymentIntentListener {
       ctx,
     );
     return { session: await this.retrieve(id), paymentIntent };
+  }
+
+  /**
+   * Creates the session's PaymentIntent under the session row lock, so concurrent payment
+   * attempts (e.g. a double-submitted form) share one PaymentIntent and can never both charge.
+   */
+  private async attachPaymentIntent(id: string, origin: Origin): Promise<string> {
+    return this.db.transaction().execute(async (tx) => {
+      const session = await this.lock(tx, id);
+      if (session.paymentIntentId) return session.paymentIntentId;
+      if (session.status !== 'open') {
+        throw unexpectedState(
+          'checkout_session_unexpected_state',
+          `This Checkout Session is ${session.status} and can no longer be paid.`,
+        );
+      }
+      const created = await this.paymentIntents.createInTransaction(
+        tx,
+        {
+          amount: session.amountTotal,
+          currency: session.currency,
+          customer: session.customerId ?? undefined,
+          receipt_email: session.customerEmail,
+          metadata: session.metadata,
+        },
+        origin,
+        { checkoutSessionId: session.id },
+      );
+      await tx
+        .updateTable('checkoutSessions')
+        .set({ paymentIntentId: created.id })
+        .where('id', '=', session.id)
+        .execute();
+      return created.id;
+    });
   }
 
   private async expireIfDue(id: string, origin: Origin): Promise<CheckoutSessionRow | null> {

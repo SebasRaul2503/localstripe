@@ -159,41 +159,51 @@ export class PaymentIntentService {
         param: 'payment_method',
       });
     }
-    const created = await this.db.transaction().execute(async (tx) => {
-      if (input.customer) await this.customers.requireActive(tx, input.customer);
-      const paymentMethod = input.payment_method
-        ? await this.paymentMethods.resolveForPayment(tx, input.payment_method)
-        : undefined;
-      if (paymentMethod) assertUsableBy(paymentMethod, input.customer ?? null);
-
-      const id = newId('paymentIntent');
-      const row = await tx
-        .insertInto('paymentIntents')
-        .values({
-          id,
-          amount: input.amount,
-          currency: input.currency,
-          status: paymentMethod ? 'requires_confirmation' : 'requires_payment_method',
-          customerId: input.customer ?? null,
-          paymentMethodId: paymentMethod?.id ?? null,
-          clientSecret: `${id}_secret_${randomToken(24)}`,
-          description: input.description ?? null,
-          receiptEmail: input.receipt_email ?? null,
-          returnUrl: input.return_url ?? null,
-          lastPaymentError: null,
-          nextAction: null,
-          checkoutSessionId: internal.checkoutSessionId ?? null,
-          metadata: json(createMetadata(input.metadata)),
-        })
-        .returningAll()
-        .executeTakeFirstOrThrow();
-      const paymentIntent = toPaymentIntentResource(row);
-      await this.events.emit(tx, { type: 'payment_intent.created', object: paymentIntent }, ctx);
-      return paymentIntent;
-    });
+    const created = await this.db
+      .transaction()
+      .execute((tx) => this.createInTransaction(tx, input, ctx, internal));
 
     if (input.confirm) return this.confirm(created.id, { return_url: input.return_url }, ctx);
     return created;
+  }
+
+  /** Inserts an unconfirmed PaymentIntent, so callers can create it atomically with other rows. */
+  async createInTransaction(
+    tx: Tx,
+    input: Omit<CreatePaymentIntentInput, 'confirm'>,
+    origin: Origin,
+    internal: { checkoutSessionId?: string } = {},
+  ): Promise<PaymentIntent> {
+    if (input.customer) await this.customers.requireActive(tx, input.customer);
+    const paymentMethod = input.payment_method
+      ? await this.paymentMethods.resolveForPayment(tx, input.payment_method)
+      : undefined;
+    if (paymentMethod) assertUsableBy(paymentMethod, input.customer ?? null);
+
+    const id = newId('paymentIntent');
+    const row = await tx
+      .insertInto('paymentIntents')
+      .values({
+        id,
+        amount: input.amount,
+        currency: input.currency,
+        status: paymentMethod ? 'requires_confirmation' : 'requires_payment_method',
+        customerId: input.customer ?? null,
+        paymentMethodId: paymentMethod?.id ?? null,
+        clientSecret: `${id}_secret_${randomToken(24)}`,
+        description: input.description ?? null,
+        receiptEmail: input.receipt_email ?? null,
+        returnUrl: input.return_url ?? null,
+        lastPaymentError: null,
+        nextAction: null,
+        checkoutSessionId: internal.checkoutSessionId ?? null,
+        metadata: json(createMetadata(input.metadata)),
+      })
+      .returningAll()
+      .executeTakeFirstOrThrow();
+    const paymentIntent = toPaymentIntentResource(row);
+    await this.events.emit(tx, { type: 'payment_intent.created', object: paymentIntent }, origin);
+    return paymentIntent;
   }
 
   async requireRow(executor: Executor, id: string, param = 'id'): Promise<PaymentIntentRow> {

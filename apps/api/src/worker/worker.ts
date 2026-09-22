@@ -14,6 +14,8 @@ export class Worker {
   private timer: NodeJS.Timeout | undefined;
   private running: Promise<void> | undefined;
   private stopped = true;
+  /** Set by stop(), so a standalone tick() (not started) still drains the whole backlog. */
+  private stopRequested = false;
   private lastMaintenance = 0;
   private lastTickAt = Date.now();
 
@@ -33,6 +35,7 @@ export class Worker {
 
   start(): void {
     this.stopped = false;
+    this.stopRequested = false;
     this.schedule(0);
     this.logger.info({ pollIntervalMs: this.config.worker.pollIntervalMs }, 'worker started');
   }
@@ -51,6 +54,7 @@ export class Worker {
 
   async stop(): Promise<void> {
     this.stopped = true;
+    this.stopRequested = true;
     clearTimeout(this.timer);
     await this.running;
   }
@@ -58,7 +62,7 @@ export class Worker {
   /** Runs one full processing pass. Exposed for tests. */
   async tick(): Promise<void> {
     await this.runJobs();
-    while ((await this.services.webhookDispatcher.dispatchDue()) > 0 && !this.stopped) {
+    while ((await this.services.webhookDispatcher.dispatchDue()) > 0 && !this.stopRequested) {
       // Keep draining while there is a backlog.
     }
     if (Date.now() - this.lastMaintenance >= MAINTENANCE_INTERVAL_MS) {

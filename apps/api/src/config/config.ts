@@ -111,13 +111,13 @@ export function parseScenarioDelays(raw: string): Partial<Record<CardScenario, n
         `PAYMENT_SCENARIO_DELAYS: unknown scenario "${name ?? ''}" (expected one of ${CARD_SCENARIOS.join(', ')})`,
       );
     }
-    const ms = Number(value);
-    if (!Number.isInteger(ms) || ms < 0) {
+    // `Number('')` is 0 and `Number('1e3')` is 1000, so require plain decimal digits.
+    if (!value || !/^\d+$/.test(value)) {
       throw new ConfigError(
         `PAYMENT_SCENARIO_DELAYS: "${entry}" must be <scenario>=<milliseconds>`,
       );
     }
-    delays[name as CardScenario] = ms;
+    delays[name as CardScenario] = Number(value);
   }
   return delays;
 }

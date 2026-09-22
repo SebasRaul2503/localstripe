@@ -16,6 +16,30 @@ interface ValidationIssue {
   params: Record<string, unknown>;
 }
 
+interface NestedIssue {
+  code: string;
+  path: unknown[];
+  message: string;
+}
+
+const reportsUndefined = (code: string, message: string) =>
+  code === 'invalid_type' && /received undefined/.test(message);
+
+/** Union-based params (integers, booleans, metadata) report an absent value per union branch. */
+function isMissingValue(issue: ValidationIssue): boolean {
+  if (reportsUndefined(issue.keyword, issue.message)) return true;
+  const branches = issue.params['errors'] as NestedIssue[][] | undefined;
+  return (
+    issue.keyword === 'invalid_union' &&
+    Array.isArray(branches) &&
+    branches.some((branch) =>
+      branch.some(
+        (nested) => nested.path.length === 0 && reportsUndefined(nested.code, nested.message),
+      ),
+    )
+  );
+}
+
 export function validationIssueToError(issue: ValidationIssue): ApiError {
   const base = toStripeParam(issue.instancePath);
   if (issue.keyword === 'unrecognized_keys') {
@@ -26,8 +50,7 @@ export function validationIssueToError(issue: ValidationIssue): ApiError {
       param,
     });
   }
-  const missing = issue.keyword === 'invalid_type' && /received undefined/.test(issue.message);
-  if (missing) {
+  if (isMissingValue(issue)) {
     return new ApiError(400, 'invalid_request_error', `Missing required param: ${base}.`, {
       code: 'parameter_missing',
       param: base,

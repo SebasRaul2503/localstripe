@@ -83,6 +83,13 @@ export async function buildServer(deps: ServerDeps): Promise<FastifyInstance> {
   app.addHook('onRequest', async (request, reply) => {
     reply.header('request-id', request.id);
   });
+  // A POST without any body (e.g. `curl -X POST .../cancel`) arrives as `null`; treat it as an
+  // empty form so optional-body routes work and required params are reported as missing.
+  app.addHook('preValidation', async (request) => {
+    if (request.method === 'POST' && (request.body === null || request.body === undefined)) {
+      request.body = {};
+    }
+  });
   app.addHook('onResponse', async (request, reply) => {
     const route = request.routeOptions.url ?? 'unmatched';
     const duration = reply.elapsedTime;
