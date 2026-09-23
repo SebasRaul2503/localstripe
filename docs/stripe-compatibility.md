@@ -118,6 +118,9 @@ flows, `reverse_transfer`, `refund_application_fee`.
 
 - `mode=payment` only, with inline `line_items[].price_data` (`currency`, `unit_amount`,
   `product_data.name/description`) and `quantity`. `success_url` supports `{CHECKOUT_SESSION_ID}`.
+- `payment_intent_data.metadata` is applied to the PaymentIntent (and copied to its charge). Without
+  it, the session `metadata` is copied instead (LocalStripe extension). Other `payment_intent_data`
+  fields are rejected.
 - `url` opens a simple LocalStripe-hosted checkout page (test cards only).
 - Events: `checkout.session.completed`, `checkout.session.async_payment_succeeded`,
   `checkout.session.async_payment_failed`, `checkout.session.expired`.

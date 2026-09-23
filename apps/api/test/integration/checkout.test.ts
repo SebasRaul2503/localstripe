@@ -126,6 +126,37 @@ describe('completing sessions', () => {
     expect(again.body.error.code).toBe('checkout_session_unexpected_state');
   });
 
+  it('applies payment_intent_data.metadata to the PaymentIntent and its charge', async () => {
+    const session = await createSession({
+      metadata: { source: 'session' },
+      payment_intent_data: { metadata: { orderId: 'order_1' } },
+    });
+    const response = await complete(session.id, CARDS.visa);
+    expect(response.status, response.text).toBe(200);
+    expect(response.body.payment_intent.metadata).toEqual({ orderId: 'order_1' });
+
+    const charge = await t.request(
+      'GET',
+      `/v1/charges/${response.body.payment_intent.latest_charge}`,
+    );
+    expect(charge.body.metadata).toEqual({ orderId: 'order_1' });
+  });
+
+  it('copies the session metadata to the PaymentIntent without payment_intent_data', async () => {
+    const session = await createSession({ metadata: { source: 'session' } });
+    const response = await complete(session.id, CARDS.visa);
+    expect(response.body.payment_intent.metadata).toEqual({ source: 'session' });
+  });
+
+  it('rejects unknown payment_intent_data fields', async () => {
+    const response = await t.request('POST', '/v1/checkout/sessions', {
+      success_url: 'http://shop.test/ok',
+      line_items: [lineItem('A', 100, 1)],
+      payment_intent_data: { capture_method: 'manual' },
+    });
+    expect(response.status).toBe(400);
+  });
+
   it('keeps the session open on decline and reuses the PaymentIntent on retry', async () => {
     const session = await createSession();
     const declined = await complete(session.id, CARDS.genericDecline);

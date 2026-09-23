@@ -135,6 +135,7 @@ export interface CheckoutSessionsTable {
   cancelUrl: string | null;
   lineItems: Json<StoredLineItem[]>;
   metadata: Json<Metadata>;
+  paymentIntentMetadata: Json<Metadata> | null;
   expiresAt: Date;
   completedAt: Date | null;
   createdAt: CreatedAt;
