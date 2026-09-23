@@ -65,6 +65,7 @@ export function checkoutSessionRoutes({
             customer_email: email().optional(),
             client_reference_id: z.string().max(200).optional(),
             metadata: metadata().optional(),
+            payment_intent_data: z.strictObject({ metadata: metadata().optional() }).optional(),
             expires_at: integer().optional(),
             payment_method_types: z.array(z.literal('card')).optional(),
             expand: expandParam,

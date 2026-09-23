@@ -49,6 +49,7 @@ export interface CreateCheckoutSessionInput {
   customer_email?: string | null;
   client_reference_id?: string;
   metadata?: MetadataInput;
+  payment_intent_data?: { metadata?: MetadataInput };
   expires_at?: number;
 }
 
@@ -72,6 +73,7 @@ export interface CheckoutSessionRow {
   cancelUrl: string | null;
   lineItems: StoredLineItem[];
   metadata: Record<string, string>;
+  paymentIntentMetadata: Record<string, string> | null;
   expiresAt: Date;
   completedAt: Date | null;
   createdAt: Date;
@@ -170,6 +172,9 @@ export class CheckoutSessionService implements PaymentIntentListener {
           cancelUrl: input.cancel_url ?? null,
           lineItems: json(lineItems),
           metadata: json(createMetadata(input.metadata)),
+          paymentIntentMetadata: input.payment_intent_data?.metadata
+            ? json(createMetadata(input.payment_intent_data.metadata))
+            : null,
           expiresAt: new Date(expiresAt * 1000),
         })
         .returningAll()
@@ -381,7 +386,7 @@ export class CheckoutSessionService implements PaymentIntentListener {
           currency: session.currency,
           customer: session.customerId ?? undefined,
           receipt_email: session.customerEmail,
-          metadata: session.metadata,
+          metadata: session.paymentIntentMetadata ?? session.metadata,
         },
         origin,
         { checkoutSessionId: session.id },
